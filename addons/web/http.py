@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-#----------------------------------------------------------
+# ----------------------------------------------------------
 # OpenERP Web HTTP layer
-#----------------------------------------------------------
+# ----------------------------------------------------------
 import ast
 import cgi
 import contextlib
-import functools
+import errno
 import getpass
 import logging
 import mimetypes
@@ -20,9 +20,10 @@ import traceback
 import urlparse
 import uuid
 import xmlrpclib
-import errno
 
 import babel.core
+import openerp
+import session
 import simplejson
 import werkzeug.contrib.sessions
 import werkzeug.datastructures
@@ -31,15 +32,12 @@ import werkzeug.utils
 import werkzeug.wrappers
 import werkzeug.wsgi
 
-import openerp
-
-import session
-
 _logger = logging.getLogger(__name__)
 
-#----------------------------------------------------------
+
+# ----------------------------------------------------------
 # RequestHandler
-#----------------------------------------------------------
+# ----------------------------------------------------------
 class WebRequest(object):
     """ Parent class for all OpenERP Web request types, mostly deals with
     initialization and setup of the request object (the dispatching itself has
@@ -81,11 +79,12 @@ class WebRequest(object):
 
         ``bool``, indicates whether the debug mode is active on the client
     """
+    
     def __init__(self, request):
         self.httprequest = request
         self.httpresponse = None
         self.httpsession = request.session
-
+    
     def init(self, params):
         self.params = dict(params)
         # OpenERP session setup
@@ -94,14 +93,14 @@ class WebRequest(object):
         if not self.session:
             self.session = session.OpenERPSession()
             self.httpsession[self.session_id] = self.session
-
+        
         # set db/uid trackers - they're cleaned up at the WSGI
         # dispatching phase in openerp.service.wsgi_server.application
         if self.session._db:
             threading.current_thread().dbname = self.session._db
         if self.session._uid:
             threading.current_thread().uid = self.session._uid
-
+        
         self.context = self.params.pop('context', {})
         self.debug = self.params.pop('debug', False) is not False
         # Determine self.lang
@@ -119,11 +118,13 @@ class WebRequest(object):
         # we use _ as seprator where RFC2616 uses '-'
         self.lang = lang.replace('-', '_')
 
+
 def reject_nonliteral(dct):
     if '__ref' in dct:
         raise ValueError(
             "Non literal contexts can not be sent to the server anymore (%r)" % (dct,))
     return dct
+
 
 class JsonRequest(WebRequest):
     """ JSON-RPC2 over HTTP.
@@ -158,6 +159,7 @@ class JsonRequest(WebRequest):
            "id": null}
 
     """
+    
     def dispatch(self, method):
         """ Calls the method asked for by the JSON-RPC2 or JSONP request
 
@@ -170,12 +172,12 @@ class JsonRequest(WebRequest):
         requestf = None
         request = None
         request_id = args.get('id')
-
+        
         if jsonp and self.httprequest.method == 'POST':
             # jsonp 2 steps step1 POST: save call
             self.init(args)
             self.session.jsonp_requests[request_id] = self.httprequest.form['r']
-            headers=[('Content-Type', 'text/plain; charset=utf-8')]
+            headers = [('Content-Type', 'text/plain; charset=utf-8')]
             r = werkzeug.wrappers.Response(request_id, headers=headers)
             return r
         elif jsonp and args.get('r'):
@@ -188,8 +190,8 @@ class JsonRequest(WebRequest):
         else:
             # regular jsonrpc2
             requestf = self.httprequest.stream
-
-        response = {"jsonrpc": "2.0" }
+        
+        response = {"jsonrpc": "2.0"}
         error = None
         try:
             # Read POST content or POST Form Data named "request"
@@ -199,7 +201,8 @@ class JsonRequest(WebRequest):
                 self.jsonrequest = simplejson.loads(request, object_hook=reject_nonliteral)
             self.init(self.jsonrequest.get("params", {}))
             if _logger.isEnabledFor(logging.DEBUG):
-                _logger.debug("--> %s.%s\n%s", method.im_class.__name__, method.__name__, pprint.pformat(self.jsonrequest))
+                _logger.debug("--> %s.%s\n%s", method.im_class.__name__, method.__name__,
+                              pprint.pformat(self.jsonrequest))
             response['id'] = self.jsonrequest.get('id')
             response["result"] = method(self, **self.params)
         except session.AuthenticationError:
@@ -219,11 +222,11 @@ class JsonRequest(WebRequest):
                     'type': 'server_exception',
                     'fault_code': e.faultCode,
                     'debug': "Client %s\nServer %s" % (
-                    "".join(traceback.format_exception("", None, sys.exc_traceback)), e.faultString)
+                        "".join(traceback.format_exception("", None, sys.exc_traceback)), e.faultString)
                 }
             }
         except Exception:
-            logging.getLogger(__name__ + '.JSONRequest.dispatch').exception\
+            logging.getLogger(__name__ + '.JSONRequest.dispatch').exception \
                 ("An error occured while handling a json request")
             error = {
                 'code': 300,
@@ -235,10 +238,10 @@ class JsonRequest(WebRequest):
             }
         if error:
             response["error"] = error
-
+        
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug("<--\n%s", pprint.pformat(response))
-
+        
         if jsonp:
             # If we use jsonp, that's mean we are called from another host
             # Some browser (IE and Safari) do no allow third party cookies
@@ -249,9 +252,10 @@ class JsonRequest(WebRequest):
         else:
             mime = 'application/json'
             body = simplejson.dumps(response)
-
+        
         r = werkzeug.wrappers.Response(body, headers=[('Content-Type', mime), ('Content-Length', len(body))])
         return r
+
 
 def jsonrequest(f):
     """ Decorator marking the decorated method as being a handler for a
@@ -266,9 +270,11 @@ def jsonrequest(f):
     f.exposed = 'json'
     return f
 
+
 class HttpRequest(WebRequest):
     """ Regular GET/POST request
     """
+    
     def dispatch(self, method):
         params = dict(self.httprequest.args)
         params.update(self.httprequest.form)
@@ -296,7 +302,7 @@ class HttpRequest(WebRequest):
             })))
         except Exception:
             logging.getLogger(__name__ + '.HttpRequest.dispatch').exception(
-                    "An error occurred while handling a json request")
+                "An error occurred while handling a json request")
             r = werkzeug.exceptions.InternalServerError(cgi.escape(simplejson.dumps({
                 'code': 300,
                 'message': "OpenERP WebClient Error",
@@ -311,7 +317,7 @@ class HttpRequest(WebRequest):
             else:
                 _logger.debug("<-- size: %s", len(r))
         return r
-
+    
     def make_response(self, data, headers=None, cookies=None):
         """ Helper for non-HTML responses, or HTML responses with custom
         response headers or cookies.
@@ -331,11 +337,12 @@ class HttpRequest(WebRequest):
             for k, v in cookies.iteritems():
                 response.set_cookie(k, v)
         return response
-
+    
     def not_found(self, description=None):
         """ Helper for 404 response, return its result from the method
         """
         return werkzeug.exceptions.NotFound(description)
+
 
 def httprequest(f):
     """ Decorator marking the decorated method as being a handler for a
@@ -350,9 +357,10 @@ def httprequest(f):
     f.exposed = 'http'
     return f
 
-#----------------------------------------------------------
+
+# ----------------------------------------------------------
 # Controller registration with a metaclass
-#----------------------------------------------------------
+# ----------------------------------------------------------
 addons_module = {}
 addons_manifest = {}
 controllers_class = []
@@ -360,6 +368,7 @@ controllers_class_path = {}
 controllers_object = {}
 controllers_object_path = {}
 controllers_path = {}
+
 
 class ControllerType(type):
     def __init__(cls, name, bases, attrs):
@@ -370,20 +379,22 @@ class ControllerType(type):
         if path not in controllers_class_path:
             controllers_class_path[path] = name_class
 
+
 class Controller(object):
     __metaclass__ = ControllerType
-
+    
     def __new__(cls, *args, **kwargs):
         subclasses = [c for c in cls.__subclasses__() if c._cp_path == cls._cp_path]
         if subclasses:
             name = "%s (extended by %s)" % (cls.__name__, ', '.join(sub.__name__ for sub in subclasses))
             cls = type(name, tuple(reversed(subclasses)), {})
-
+        
         return object.__new__(cls)
 
-#----------------------------------------------------------
+
+# ----------------------------------------------------------
 # Session context manager
-#----------------------------------------------------------
+# ----------------------------------------------------------
 @contextlib.contextmanager
 def session_context(request, session_store, session_lock, sid):
     with session_lock:
@@ -402,14 +413,14 @@ def session_context(request, session_store, session_lock, sid):
             if not isinstance(value, session.OpenERPSession):
                 continue
             if getattr(value, '_suicide', False) or (
-                        not value._uid
+                    not value._uid
                     and not value.jsonp_requests
                     # FIXME do not use a fixed value
-                    and value._creation_time + (60*5) < time.time()):
+                    and value._creation_time + (60 * 5) < time.time()):
                 _logger.debug('remove session %s', key)
                 removed_sessions.add(key)
                 del request.session[key]
-
+        
         with session_lock:
             if sid:
                 # Re-load sessions from storage and merge non-literal
@@ -436,18 +447,19 @@ def session_context(request, session_store, session_lock, sid):
                             v.jsonp_requests = {}
                         v.jsonp_requests.update(getattr(
                             stored, 'jsonp_requests', {}))
-
+                
                 # add missing keys
                 for k, v in in_store.iteritems():
                     if k not in request.session and k not in removed_sessions:
                         request.session[k] = v
-
+            
             session_store.save(request.session)
+
 
 def session_gc(session_store):
     if random.random() < 0.001:
         # we keep session one week
-        last_week = time.time() - 60*60*24*7
+        last_week = time.time() - 60 * 60 * 24 * 7
         for fname in os.listdir(session_store.path):
             path = os.path.join(session_store.path, fname)
             try:
@@ -456,35 +468,40 @@ def session_gc(session_store):
             except OSError:
                 pass
 
-#----------------------------------------------------------
+
+# ----------------------------------------------------------
 # WSGI Application
-#----------------------------------------------------------
+# ----------------------------------------------------------
 # Add potentially missing (older ubuntu) font mime types
 mimetypes.add_type('application/font-woff', '.woff')
 mimetypes.add_type('application/vnd.ms-fontobject', '.eot')
 mimetypes.add_type('application/x-font-ttf', '.ttf')
 
+
 class DisableCacheMiddleware(object):
     def __init__(self, app):
         self.app = app
+    
     def __call__(self, environ, start_response):
         def start_wrapped(status, headers):
             referer = environ.get('HTTP_REFERER', '')
             parsed = urlparse.urlparse(referer)
             debug = parsed.query.count('debug') >= 1
-
+            
             new_headers = []
             unwanted_keys = ['Last-Modified']
             if debug:
                 new_headers = [('Cache-Control', 'no-cache')]
                 unwanted_keys += ['Expires', 'Etag', 'Cache-Control']
-
+            
             for k, v in headers:
                 if k not in unwanted_keys:
                     new_headers.append((k, v))
-
+            
             start_response(status, new_headers)
+        
         return self.app(environ, start_wrapped)
+
 
 def session_path():
     try:
@@ -507,26 +524,28 @@ def session_path():
             raise
     return path
 
+
 class Root(object):
     """Root WSGI application for the OpenERP Web Client.
     """
+    
     def __init__(self):
         self.addons = {}
         self.statics = {}
-
+        
         self.load_addons()
-
+        
         # Setup http sessions
         path = session_path()
         self.session_store = werkzeug.contrib.sessions.FilesystemSessionStore(path)
         self.session_lock = threading.Lock()
         _logger.debug('HTTP sessions stored in: %s', path)
-
+    
     def __call__(self, environ, start_response):
         """ Handle a WSGI request
         """
         return self.dispatch(environ, start_response)
-
+    
     def dispatch(self, environ, start_response):
         """
         Performs the actual WSGI dispatching for the application, may be
@@ -537,36 +556,47 @@ class Root(object):
         request = werkzeug.wrappers.Request(environ)
         request.parameter_storage_class = werkzeug.datastructures.ImmutableDict
         request.app = self
-
+        
         handler = self.find_handler(*(request.path.split('/')[1:]))
-
+        
         if not handler:
             response = werkzeug.exceptions.NotFound()
         else:
             sid = request.cookies.get('sid')
             if not sid:
                 sid = request.args.get('sid')
-
+            
             session_gc(self.session_store)
-
+            
             with session_context(request, self.session_store, self.session_lock, sid) as session:
                 result = handler(request)
-
+                
                 if isinstance(result, basestring):
-                    headers=[('Content-Type', 'text/html; charset=utf-8'), ('Content-Length', len(result))]
+                    headers = [('Content-Type', 'text/html; charset=utf-8'), ('Content-Length', len(result))]
                     response = werkzeug.wrappers.Response(result, headers=headers)
                 else:
                     response = result
-
+                
                 if hasattr(response, 'set_cookie'):
                     response.set_cookie('sid', session.sid)
-
+                    # response.headers.add('X-Sid', session.sid)
+        
+        origin = self._get_origin(request.headers['Origin'] if 'Origin' in request.headers else None)
+        
+        response.headers.extend([
+            ('Access-Control-Allow-Origin', origin), # 'http://localhost:8080'
+            ('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'),
+            ('Access-Control-Allow-Credentials', 'true'),
+            ('Access-Control-Max-Age', 1000),
+            ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set_cookie, X-Sid, accept'),
+            ('Access-Control-Expose-Headers', 'origin, x-csrftoken, content-type, set_cookie, X-Sid, accept'),
+        ])
         return response(environ, start_response)
-
+    
     def load_addons(self):
         """ Load all addons from addons patch containg static files and
         controllers and configure them.  """
-
+        
         for addons_path in openerp.modules.module.ad_paths:
             for module in sorted(os.listdir(str(addons_path))):
                 if module not in addons_module:
@@ -583,7 +613,7 @@ class Root(object):
                         addons_module[module] = m
                         addons_manifest[module] = manifest
                         self.statics['/%s/static' % module] = path_static
-
+        
         for k, v in controllers_class_path.items():
             if k not in controllers_object_path and hasattr(v[1], '_cp_path'):
                 o = v[1]()
@@ -591,10 +621,10 @@ class Root(object):
                 controllers_object_path[k] = o
                 if hasattr(o, '_cp_path'):
                     controllers_path[o._cp_path] = o
-
+        
         app = werkzeug.wsgi.SharedDataMiddleware(self.dispatch, self.statics)
         self.dispatch = DisableCacheMiddleware(app)
-
+    
     def find_handler(self, *l):
         """
         Tries to discover the controller handling the request for the path
@@ -623,6 +653,17 @@ class Root(object):
                 if not ps and method_name:
                     ps = '/'
         return None
+    
+    def _get_origin(self, request_origin):
+        origin = '*'
+        if request_origin:
+            allowed_origins=os.getenv('ALLOWED_SOURCES')
+            for allowed_origin in allowed_origins.split(','):
+                if allowed_origin.lower() in request_origin.lower():
+                    origin = request_origin
+            
+        return origin
+
 
 def wsgi_postload():
     openerp.wsgi.register_wsgi_handler(Root())
