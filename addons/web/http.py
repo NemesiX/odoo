@@ -578,7 +578,7 @@ class Root(object):
                     response = result
                 
                 if hasattr(response, 'set_cookie'):
-                    response.set_cookie('sid', session.sid, samesite='Strict')
+                    response.set_cookie('sid', session.sid, samesite=None, secure=True)
                     
         origin = self._get_origin(request.headers['Origin'] if 'Origin' in request.headers else None)
         
