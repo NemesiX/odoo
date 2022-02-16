@@ -391,6 +391,7 @@ openerp.web.pyeval = function (instance) {
                     case 'H': return _.str.sprintf('%02d', self.hour);
                     case 'M': return _.str.sprintf('%02d', self.minute);
                     case 'S': return _.str.sprintf('%02d', self.second);
+                    case 'w': return new Date(self.year, self.month-1, self.day, self.hour, self.minute, self.second).getDay();
                     }
                     throw new Error('ValueError: No known conversion for ' + m);
                 }));
@@ -440,6 +441,7 @@ openerp.web.pyeval = function (instance) {
                     case 'Y': return self.year;
                     case 'm': return _.str.sprintf('%02d', self.month);
                     case 'd': return _.str.sprintf('%02d', self.day);
+                    case 'w': return new Date(self.year, self.month-1, self.day).getDay();
                     }
                     throw new Error('ValueError: No known conversion for ' + m);
                 }));
@@ -551,7 +553,10 @@ openerp.web.pyeval = function (instance) {
             if (day > lastMonthDay) { day = lastMonthDay; }
             var days_offset = ((asJS(this.ops.weeks) || 0) * 7) + (asJS(this.ops.days) || 0);
             if (days_offset) {
-                day = new Date(year, month-1, day + days_offset).getDate();
+                var calcdate = new Date(year, month-1, day + days_offset);
+                day=calcdate.getDate();
+                month=calcdate.getMonth()+1;
+                year=calcdate.getFullYear();
             }
             // TODO: leapdays?
             // TODO: hours, minutes, seconds? Not used in XML domains
@@ -596,7 +601,10 @@ openerp.web.pyeval = function (instance) {
             if (day > lastMonthDay) { day = lastMonthDay; }
             var days_offset = ((asJS(this.ops.weeks) || 0) * 7) + (asJS(this.ops.days) || 0);
             if (days_offset) {
-                day = new Date(year, month-1, day - days_offset).getDate();
+                var calcdate = new Date(year, month-1, day - days_offset);
+                day=calcdate.getDate();
+                month=calcdate.getMonth()+1;
+                year=calcdate.getFullYear();
             }
             // TODO: leapdays?
             // TODO: hours, minutes, seconds? Not used in XML domains
