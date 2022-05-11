@@ -578,8 +578,9 @@ class Root(object):
                     response = result
                 
                 if hasattr(response, 'set_cookie'):
-                    response.set_cookie('sid', session.sid, samesite=None, secure=True)
-                    response.headers.add("Set-Cookie", "sid={}; Secure; SameSite=None; Path=/;".format(session.sid))
+                    # response.set_cookie('sid', session.sid, samesite=None, secure=True)
+                    # response.set_cookie('sid', session.sid, secure=True)
+                    response.headers.add("Set-Cookie", 'sid="{}"; Secure; SameSite=None; Path=/'.format(session.sid))
                     
         origin = self._get_origin(request.headers['Origin'] if 'Origin' in request.headers else None)
         
@@ -588,8 +589,8 @@ class Root(object):
             ('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'),
             ('Access-Control-Allow-Credentials', 'true'),
             ('Access-Control-Max-Age', 1000),
-            ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set_cookie, X-Sid, accept'),
-            ('Access-Control-Expose-Headers', 'origin, x-csrftoken, content-type, set_cookie, X-Sid, accept'),
+            ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, accept'),
+            ('Access-Control-Expose-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, accept'),
         ])
         return response(environ, start_response)
     
