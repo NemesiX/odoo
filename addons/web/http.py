@@ -580,7 +580,11 @@ class Root(object):
                 if hasattr(response, 'set_cookie'):
                     # response.set_cookie('sid', session.sid, samesite=None, secure=True)
                     # response.set_cookie('sid', session.sid, secure=True)
-                    response.headers.add("Set-Cookie", 'sid="{}"; Secure; SameSite=None; Path=/'.format(session.sid))
+                    if request.is_secure:
+                        response.headers.add("Set-Cookie", 'sid={}; Secure; SameSite=None; Path=/;'.format(session.sid))
+                    else:
+                        response.set_cookie('sid', session.sid)
+                    
                     
         origin = self._get_origin(request.headers['Origin'] if 'Origin' in request.headers else None)
         
