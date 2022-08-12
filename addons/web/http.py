@@ -584,7 +584,7 @@ class Root(object):
                     # response.set_cookie('sid', session.sid, secure=True)
                     if request.is_secure or prod:
                         response.set_cookie('sid', session.sid, samesite=None, secure=True)
-                        # response.headers.add("Set-Cookie", 'sid={}; Secure; SameSite=None; Path=/;'.format(session.sid))
+                        response.headers.add("Set-Cookie", "sid={}; Secure; SameSite=None; Path=/;".format(session.sid))
                     else:
                         response.set_cookie('sid', session.sid)
                     
