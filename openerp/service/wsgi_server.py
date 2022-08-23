@@ -78,7 +78,7 @@ def _get_origin(request_origin):
     return origin
 
 
-def xmlrpc_return(start_response, service, method, params, string_faultcode=False):
+def xmlrpc_return(start_response, service, method, params, legacy_exceptions=False):
     """
     Helper to call a service's method with some params, using a wsgi-supplied
     ``start_response`` callback.
