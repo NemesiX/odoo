@@ -41,6 +41,7 @@ import openerp.tools.config as config
 import websrv_lib
 import werkzeug.contrib.fixers
 import werkzeug.serving
+import wsgi_server
 
 _logger = logging.getLogger(__name__)
 
@@ -90,14 +91,28 @@ def xmlrpc_return(start_response, service, method, params, string_faultcode=Fals
     # RPC_FAULT_CODE_APPLICATION_ERROR value.
     # This also mimics SimpleXMLRPCDispatcher._marshaled_dispatch() for
     # exception handling.
+
+# -----   Zizzo 23-08-2022: La parte sotto penso sia un copia e incolla brutale di Robby
+#    try:
+#        result = openerp.http.dispatch_rpc(service, method, params)
+#        response = xmlrpclib.dumps((result,), methodresponse=1, allow_none=False, encoding=None)
+#    except Exception, e :
+#        if string_faultcode:
+#            response = xmlrpc_handle_exception_string(e)
+#        else:
+#            response = xmlrpc_handle_exception_int(e)
+# -----   Zizzo 23-08-2022: La parte sopra penso sia un copia e incolla brutale di Robby
+
+    # -----   Zizzo 23-08-2022: Ripristinato codice orginale dopo chiamata di Massari che segnalava l'errore sul webservice
     try:
-        result = openerp.http.dispatch_rpc(service, method, params)
+        result = openerp.netsvc.dispatch_rpc(service, method, params)
         response = xmlrpclib.dumps((result,), methodresponse=1, allow_none=False, encoding=None)
     except Exception, e:
-        if string_faultcode:
-            response = xmlrpc_handle_exception_string(e)
+        if legacy_exceptions:
+            response = xmlrpc_handle_exception_legacy(e)
         else:
-            response = xmlrpc_handle_exception_int(e)
+            response = xmlrpc_handle_exception(e)
+
     start_response("200 OK", [
         ('Content-Type', 'text/xml'), ('Content-Length', str(len(response))),
         ('Access-Control-Allow-Origin', '*'),
