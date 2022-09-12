@@ -588,7 +588,7 @@ class Root(object):
                     if request.is_secure or prod:
                         domain = self._get_domain(origin)
                         if domain:
-                            response.set_cookie('sid', value=session.sid, samesite=None, secure=True, domain=domain)
+                            response.set_cookie('sid', value=session.sid, samesite='Lax', secure=True, domain=domain)
                             # response.set_cookie('sidtest', value=session.sid, samesite=None, secure=True, domain=domain)
                         else:
                             response.set_cookie('sid', value=session.sid, samesite=None, secure=True)
