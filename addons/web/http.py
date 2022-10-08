@@ -562,13 +562,19 @@ class Root(object):
         # Ottengo il dominio della pagina chiamante da utilizzare poi successivamente
         origin = self._get_origin(request.headers['Origin'] if 'Origin' in request.headers else None)
 
+        prod = os.getenv('PROD') == 'YES'
+
         if not handler:
             response = werkzeug.exceptions.NotFound()
         else:
             sid = request.cookies.get('sid')
+            sid_test = request.headers.get('Authorization', '').partition(' ')[2]
             if not sid:
                 sid = request.args.get('sid')
-            
+            if not sid:
+                sid = request.headers.get('Authorization', '').partition(' ')[2]
+                print('sid_test = {}'.format(sid_test))
+
             session_gc(self.session_store)
             
             with session_context(request, self.session_store, self.session_lock, sid) as session:
@@ -579,8 +585,6 @@ class Root(object):
                     response = werkzeug.wrappers.Response(result, headers=headers)
                 else:
                     response = result
-
-                prod = os.getenv('PROD') == 'YES'
 
                 if hasattr(response, 'set_cookie'):
                     # response.set_cookie('sid', session.sid, samesite=None, secure=True)
@@ -601,15 +605,15 @@ class Root(object):
                     else:
                         response.set_cookie('sid', value=session.sid)
 
-        if hasattr(response, 'headers'):
-            response.headers.extend([
-                ('Access-Control-Allow-Origin', origin),  # 'http://localhost:8080'
-                ('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'),
-                ('Access-Control-Allow-Credentials', 'true'),
-                ('Access-Control-Max-Age', 1000),
-                ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, accept'),
-                ('Access-Control-Expose-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, accept'),
-            ])
+                if hasattr(response, 'headers'):
+                    response.headers.extend([
+                        ('Access-Control-Allow-Origin', origin),  # 'http://localhost:8080'
+                        ('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'),
+                        ('Access-Control-Allow-Credentials', 'true'),
+                        ('Access-Control-Max-Age', 1000),
+                        ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, accept'),
+                        ('Access-Control-Expose-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, accept'),
+                    ])
         return response(environ, start_response)
     
     def load_addons(self):
