@@ -112,7 +112,7 @@ def xmlrpc_return(start_response, service, method, params, legacy_exceptions=Fal
             response = xmlrpc_handle_exception_legacy(e)
         else:
             response = xmlrpc_handle_exception(e)
-
+    print('xmlrpc_return')
     start_response("200 OK", [
         ('Content-Type', 'text/xml'), ('Content-Length', str(len(response))),
         ('Access-Control-Allow-Origin', '*'),
@@ -226,6 +226,7 @@ def wsgi_xmlrpc_1(environ, start_response):
         # The body has been read, need to raise an exception (not return None).
         fault = xmlrpclib.Fault(RPC_FAULT_CODE_CLIENT_ERROR, '')
         response = xmlrpclib.dumps(fault, allow_none=None, encoding=None)
+        print('wsgi_xmlrpc_1')
         start_response("200 OK", [
             ('Content-Type', 'text/xml'),
             ('Content-Length', str(len(response))),
@@ -259,6 +260,8 @@ def wsgi_xmlrpc(environ, start_response):
             'Access-Control-Expose-Headers'] = 'origin, x-csrftoken, content-type, set_cookie, X-Sid, Authorization, accept'
         return response(environ, start_response)
 
+    print('wsgi_xmlrpc')
+
     if environ['REQUEST_METHOD'] == 'POST' and environ['PATH_INFO'].startswith('/xmlrpc/'):
         length = int(environ['CONTENT_LENGTH'])
         data = environ['wsgi.input'].read(length)
@@ -278,6 +281,8 @@ def wsgi_xmlrpc_legacy(environ, start_response):
         length = int(environ['CONTENT_LENGTH'])
         data = environ['wsgi.input'].read(length)
         path = environ['PATH_INFO'][len('/xmlrpc/'):]  # expected to be one of db, object, ...
+
+        print('wsgi_xmlrpc_legacy')
 
         params, method = xmlrpclib.loads(data)
         return xmlrpc_return(start_response, path, method, params, True)
@@ -323,6 +328,8 @@ def http_to_wsgi(http_dir):
     """
 
     def wsgi_handler(environ, start_response):
+
+        print('wsgi_handler')
 
         headers = {}
         for key, value in environ.items():
