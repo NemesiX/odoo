@@ -582,8 +582,8 @@ class Root(object):
             if not sid:
                 sid = request.headers.get('X-Sid', '')
 
-            if sid_authorization != '' and sid_authorization == sid_x_sid and sid_authorization == sid_arg and sid_authorization != sid:
-                # http://localhost/
+            if sid_authorization != '' and sid_authorization == sid_x_sid and sid_authorization != sid:
+                # and sid_authorization == sid_arg
                 sid = sid_authorization
 
             print('sid = {}'.format(sid))

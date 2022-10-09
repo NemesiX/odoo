@@ -248,6 +248,7 @@ def wsgi_xmlrpc(environ, start_response):
     therefore fully compliant.
     """
     origin = _get_origin(environ['HTTP_ORIGIN'] if 'HTTP_ORIGIN' in environ else None)
+    print('wsgi_xmlrpc - origin = {}'.format(origin))
     if environ['REQUEST_METHOD'] == "OPTIONS":
         response = werkzeug.wrappers.Response('OPTIONS METHOD DETECTED')
         response.headers['Access-Control-Allow-Origin'] = origin  # http://localhost:8080
@@ -258,11 +259,12 @@ def wsgi_xmlrpc(environ, start_response):
             'Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, set_cookie, X-Sid, Authorization, accept'
         response.headers[
             'Access-Control-Expose-Headers'] = 'origin, x-csrftoken, content-type, set_cookie, X-Sid, Authorization, accept'
+        print('wsgi_xmlrpc - OPTIONS')
         return response(environ, start_response)
 
-    print('wsgi_xmlrpc')
 
     if environ['REQUEST_METHOD'] == 'POST' and environ['PATH_INFO'].startswith('/xmlrpc/'):
+        print('wsgi_xmlrpc - POST')
         length = int(environ['CONTENT_LENGTH'])
         data = environ['wsgi.input'].read(length)
         # Distinguish betweed the 2 faultCode modes
