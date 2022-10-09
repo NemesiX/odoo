@@ -119,7 +119,7 @@ def xmlrpc_return(start_response, service, method, params, legacy_exceptions=Fal
         ('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'),
         ('Access-Control-Allow-Credentials', 'true'),
         ('Access-Control-Max-Age', 1000),
-        ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set_cookie, X-Sid, accept'),
+        ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set_cookie, X-Sid, Authorization, accept'),
     ]
                    )
     return [response]
@@ -233,7 +233,7 @@ def wsgi_xmlrpc_1(environ, start_response):
             ('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'),
             ('Access-Control-Allow-Credentials', 'true'),
             ('Access-Control-Max-Age', 1000),
-            ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set_cookie, X-Sid, accept'),
+            ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set_cookie, X-Sid, Authorization, accept'),
         ]
                        )
         return [response]
@@ -254,9 +254,9 @@ def wsgi_xmlrpc(environ, start_response):
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Max-Age'] = 1000
         response.headers[
-            'Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, set_cookie, X-Sid, accept'
+            'Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, set_cookie, X-Sid, Authorization, accept'
         response.headers[
-            'Access-Control-Expose-Headers'] = 'origin, x-csrftoken, content-type, set_cookie, X-Sid, accept'
+            'Access-Control-Expose-Headers'] = 'origin, x-csrftoken, content-type, set_cookie, X-Sid, Authorization, accept'
         return response(environ, start_response)
 
     if environ['REQUEST_METHOD'] == 'POST' and environ['PATH_INFO'].startswith('/xmlrpc/'):

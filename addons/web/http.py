@@ -568,12 +568,19 @@ class Root(object):
             response = werkzeug.exceptions.NotFound()
         else:
             sid = request.cookies.get('sid')
-            sid_test = request.headers.get('Authorization', '').partition(' ')[2]
+            sid_authorization = request.headers.get('Authorization', '').partition(' ')[2]
+            print('request.headers = {}'.format(request.headers))
+            sid_X_Sid = request.headers.get('X-Sid', '')
+            sid_arg = request.args.get('sid', '')
+            print('sid_authorization = {}'.format(sid_authorization))
+            print('sid_X_Sid = {}'.format(sid_X_Sid))
+            print('sid_arg1 = {}'.format(sid_arg))
             if not sid:
                 sid = request.args.get('sid')
             if not sid:
                 sid = request.headers.get('Authorization', '').partition(' ')[2]
-                print('sid_test = {}'.format(sid_test))
+            if not sid:
+                sid = request.headers.get('X-Sid', '')
 
             session_gc(self.session_store)
             
@@ -611,8 +618,8 @@ class Root(object):
                         ('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'),
                         ('Access-Control-Allow-Credentials', 'true'),
                         ('Access-Control-Max-Age', 1000),
-                        ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, accept'),
-                        ('Access-Control-Expose-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, accept'),
+                        ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, Authorization, accept'),
+                        ('Access-Control-Expose-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, Authorization, accept'),
                     ])
         return response(environ, start_response)
     
