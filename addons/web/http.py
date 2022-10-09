@@ -558,35 +558,16 @@ class Root(object):
         request.app = self
         
         handler = self.find_handler(*(request.path.split('/')[1:]))
-
-        # Ottengo il dominio della pagina chiamante da utilizzare poi successivamente
-        origin = self._get_origin(request.headers['Origin'] if 'Origin' in request.headers else None)
-
-        prod = os.getenv('PROD') == 'YES'
-
+        
         if not handler:
             response = werkzeug.exceptions.NotFound()
         else:
             sid = request.cookies.get('sid')
-            sid_authorization = request.headers.get('Authorization', '').partition(' ')[2]
-            print('request.headers = {}'.format(request.headers))
-            sid_x_sid = request.headers.get('X-Sid', '')
-            sid_arg = request.args.get('sid', '')
-            print('sid_authorization = {}'.format(sid_authorization))
-            print('sid_X_Sid = {}'.format(sid_x_sid))
-            print('sid_arg1 = {}'.format(sid_arg))
+            _logger.debug("sid in da cooky = {}".format(sid))
             if not sid:
                 sid = request.args.get('sid')
-            if not sid:
-                sid = request.headers.get('Authorization', '').partition(' ')[2]
-            if not sid:
-                sid = request.headers.get('X-Sid', '')
+                _logger.debug("sid in da arg = {}".format(sid))
 
-            if sid_authorization != '' and sid_authorization == sid_x_sid and sid_authorization != sid:
-                # and sid_authorization == sid_arg
-                sid = sid_authorization
-
-            print('sid = {}'.format(sid))
             session_gc(self.session_store)
             
             with session_context(request, self.session_store, self.session_lock, sid) as session:
@@ -598,34 +579,30 @@ class Root(object):
                 else:
                     response = result
 
+                prod = os.getenv('PROD') == 'YES'
+
                 if hasattr(response, 'set_cookie'):
                     # response.set_cookie('sid', session.sid, samesite=None, secure=True)
                     # response.set_cookie('sid', session.sid, secure=True)
                     if request.is_secure or prod:
-                        # domain = self._get_domain(origin)
-                        # if domain:
-                        #     response.set_cookie('sid', value=session.sid, samesite=None, secure=True, domain=domain)
-                        #     # response.set_cookie('sidtest', value=session.sid, samesite=None, secure=True, domain=domain)
-                        # else:
-                        #     response.set_cookie('sid', value=session.sid, samesite=None, secure=True)
-
-                        response.set_cookie('sid', value=session.sid, samesite=None, secure=True)
-
-                        # if hasattr(response, 'headers'):
-                        #     response.headers.add("Set-Cookie", "sid={}; Secure; SameSite=None; Path=/;".format(session.sid))
-                        #     response.headers.add("Set-Cookie", "sidtest={}; Secure; SameSite=None; Path=/;".format(session.sid))
+                        response.set_cookie('sid', session.sid, samesite=None, secure=True)
+                        if hasattr(response, 'headers'):
+                            response.headers.add("Set-Cookie", "sid={}; Secure; SameSite=None; Path=/;".format(session.sid))
                     else:
-                        response.set_cookie('sid', value=session.sid)
+                        response.set_cookie('sid', session.sid)
+                    
+                    
+        origin = self._get_origin(request.headers['Origin'] if 'Origin' in request.headers else None)
 
-                if hasattr(response, 'headers'):
-                    response.headers.extend([
-                        ('Access-Control-Allow-Origin', origin),  # 'http://localhost:8080'
-                        ('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'),
-                        ('Access-Control-Allow-Credentials', 'true'),
-                        ('Access-Control-Max-Age', 1000),
-                        ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, Authorization, accept'),
-                        ('Access-Control-Expose-Headers', 'origin, x-csrftoken, content-type, set-cookie, X-Sid, Authorization, accept'),
-                    ])
+        if hasattr(response, 'headers'):
+            response.headers.extend([
+                ('Access-Control-Allow-Origin', origin),  # 'http://localhost:8080'
+                ('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'),
+                ('Access-Control-Allow-Credentials', 'true'),
+                ('Access-Control-Max-Age', 1000),
+                ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, Set-Cookie, X-Sid, Authorization, accept'),
+                ('Access-Control-Expose-Headers', 'origin, x-csrftoken, content-type, Set-Cookie, X-Sid, Authorization, accept'),
+            ])
         return response(environ, start_response)
     
     def load_addons(self):
@@ -690,10 +667,6 @@ class Root(object):
         return None
     
     def _get_origin(self, request_origin):
-        """
-        Funzione che deterimina il valore da utilizzare per la chiave Access-Control-Allow-Origin da mettere nellheader
-        per la gestione del CORS
-        """
         origin = '*'
         if request_origin:
             allowed_origins = os.getenv('ALLOWED_SOURCES')
@@ -706,41 +679,6 @@ class Root(object):
                 if allowed_origin.lower() in request_origin.lower():
                     origin = request_origin
         return origin
-
-    def _get_domain(self, origin):
-        """
-        Funzione che restituisce la stringa da utilizzare nella definizione del cookie alla chiave domain
-        Di default il valore è None e ad oggi (10/09/2022) serve solo per Safari, gli altri browser se domain=None
-        usano il dominio della request, ma lo metteremo indipendentemente dal browser
-
-        Parametri:
-        - origin = [stringa] indirizzo ottenuto dalla funzione _get_origin
-
-        Come riferimenti ho usato:
-        https://datacadamia.com/web/http/cookie_domain
-        https://datatracker.ietf.org/doc/html/draft-ietf-httpstate-cookie-08#section-5.2.3
-        https://stackoverflow.com/questions/1062963/how-do-browser-cookie-domains-work/30676300#30676300 [Risposta 9 (ad oggi)]
-
-        Non ho ben capito se il domain deve iniziare con . (punto), per sicurezza lo metto perchè sembra che funzioni
-        come wildcard e permetta di autorizzare il cookie anche a sotto domini
-
-        Le condizioni per mettere il domain sono:
-         - variabile d'ambiente PROD presente e uguale a YES
-         - sorgente non deve essere localhost
-         - sorgente non deve avere una porta diversa dalle standard
-
-
-         Importante: al momento il dominio deve contenere anche l'host quindi demo.nempos.com e non nempos.com
-        """
-        ret_val = None
-
-        prod = os.getenv('PROD') == 'YES'
-
-        # cerco di ottenere il dominio solo se ci sono le condizioni corrette
-        if prod and 'localhost' not in origin and ':' not in origin:
-            ret_val = '.{}'.format(origin.partition('.')[2])
-
-        return ret_val
 
 
 def wsgi_postload():

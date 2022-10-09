@@ -63,7 +63,7 @@ JSON_RPC_PATH_1 = '/openerp/jsonrpc/1'
 
 
 def _get_origin(request_origin):
-    origin = '*'  # http://localhost
+    origin = '*' # http://localhost
     if request_origin:
         allowed_origins = os.getenv('ALLOWED_SOURCES')
         if not allowed_origins:
@@ -74,7 +74,7 @@ def _get_origin(request_origin):
         for allowed_origin in allowed_origins.split(','):
             if allowed_origin.lower() in request_origin.lower():
                 origin = request_origin
-
+    
     return origin
 
 
@@ -92,16 +92,16 @@ def xmlrpc_return(start_response, service, method, params, legacy_exceptions=Fal
     # This also mimics SimpleXMLRPCDispatcher._marshaled_dispatch() for
     # exception handling.
 
-    # -----   Zizzo 23-08-2022: La parte sotto penso sia un copia e incolla brutale di Robby
-    #    try:
-    #        result = openerp.http.dispatch_rpc(service, method, params)
-    #        response = xmlrpclib.dumps((result,), methodresponse=1, allow_none=False, encoding=None)
-    #    except Exception, e :
-    #        if string_faultcode:
-    #            response = xmlrpc_handle_exception_string(e)
-    #        else:
-    #            response = xmlrpc_handle_exception_int(e)
-    # -----   Zizzo 23-08-2022: La parte sopra penso sia un copia e incolla brutale di Robby
+# -----   Zizzo 23-08-2022: La parte sotto penso sia un copia e incolla brutale di Robby
+#    try:
+#        result = openerp.http.dispatch_rpc(service, method, params)
+#        response = xmlrpclib.dumps((result,), methodresponse=1, allow_none=False, encoding=None)
+#    except Exception, e :
+#        if string_faultcode:
+#            response = xmlrpc_handle_exception_string(e)
+#        else:
+#            response = xmlrpc_handle_exception_int(e)
+# -----   Zizzo 23-08-2022: La parte sopra penso sia un copia e incolla brutale di Robby
 
     # -----   Zizzo 23-08-2022: Ripristinato codice orginale dopo chiamata di Massari che segnalava l'errore sul webservice
     try:
@@ -112,14 +112,14 @@ def xmlrpc_return(start_response, service, method, params, legacy_exceptions=Fal
             response = xmlrpc_handle_exception_legacy(e)
         else:
             response = xmlrpc_handle_exception(e)
-    print('xmlrpc_return')
+
     start_response("200 OK", [
         ('Content-Type', 'text/xml'), ('Content-Length', str(len(response))),
         ('Access-Control-Allow-Origin', '*'),
         ('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'),
         ('Access-Control-Allow-Credentials', 'true'),
         ('Access-Control-Max-Age', 1000),
-        ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set_cookie, X-Sid, Authorization, accept'),
+        ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, Set-Cookie, X-Sid, Authorization, accept'),
     ]
                    )
     return [response]
@@ -190,43 +190,42 @@ def wsgi_xmlrpc_1(environ, start_response):
     if environ['REQUEST_METHOD'] == 'POST' and environ['PATH_INFO'].startswith(XML_RPC_PATH_1):
         length = int(environ['CONTENT_LENGTH'])
         data = environ['wsgi.input'].read(length)
-
+        
         params, method = xmlrpclib.loads(data)
-
+        
         path = environ['PATH_INFO'][len(XML_RPC_PATH_1):]
         if path.startswith('/'): path = path[1:]
         if path.endswith('/'): path = path[:-1]
         path = path.split('/')
-
+        
         # All routes are hard-coded.
-
+        
         # No need for a db segment.
         if len(path) == 1:
             service = path[0]
-
+            
             if service == 'common':
                 if method in ('server_version',):
                     service = 'db'
             return xmlrpc_return(start_response, service, method, params)
-
+        
         # A db segment must be given.
         elif len(path) == 2:
             service, db_name = path
             params = (db_name,) + params
-
+            
             return xmlrpc_return(start_response, service, method, params)
-
+        
         # A db segment and a model segment must be given.
         elif len(path) == 3 and path[0] == 'model':
             service, db_name, model_name = path
             params = (db_name,) + params[:2] + (model_name,) + params[2:]
             service = 'object'
             return xmlrpc_return(start_response, service, method, params)
-
+        
         # The body has been read, need to raise an exception (not return None).
         fault = xmlrpclib.Fault(RPC_FAULT_CODE_CLIENT_ERROR, '')
         response = xmlrpclib.dumps(fault, allow_none=None, encoding=None)
-        print('wsgi_xmlrpc_1')
         start_response("200 OK", [
             ('Content-Type', 'text/xml'),
             ('Content-Length', str(len(response))),
@@ -234,7 +233,7 @@ def wsgi_xmlrpc_1(environ, start_response):
             ('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'),
             ('Access-Control-Allow-Credentials', 'true'),
             ('Access-Control-Max-Age', 1000),
-            ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, set_cookie, X-Sid, Authorization, accept'),
+            ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, Set-Cookie, X-Sid, Authorization, accept'),
         ]
                        )
         return [response]
@@ -248,23 +247,17 @@ def wsgi_xmlrpc(environ, start_response):
     therefore fully compliant.
     """
     origin = _get_origin(environ['HTTP_ORIGIN'] if 'HTTP_ORIGIN' in environ else None)
-    print('wsgi_xmlrpc - origin = {}'.format(origin))
     if environ['REQUEST_METHOD'] == "OPTIONS":
         response = werkzeug.wrappers.Response('OPTIONS METHOD DETECTED')
-        response.headers['Access-Control-Allow-Origin'] = origin  # http://localhost:8080
+        response.headers['Access-Control-Allow-Origin'] = origin # http://localhost:8080
         response.headers['Access-Control-Allow-Methods'] = 'POST, GET, OPTIONS'
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Max-Age'] = 1000
-        response.headers[
-            'Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, set_cookie, X-Sid, Authorization, accept'
-        response.headers[
-            'Access-Control-Expose-Headers'] = 'origin, x-csrftoken, content-type, set_cookie, X-Sid, Authorization, accept'
-        print('wsgi_xmlrpc - OPTIONS')
+        response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, Set-Cookie, X-Sid, Authorization, accept'
+        response.headers['Access-Control-Expose-Headers'] = 'origin, x-csrftoken, content-type, Set-Cookie, X-Sid, Authorization, accept'
         return response(environ, start_response)
-
-
+    
     if environ['REQUEST_METHOD'] == 'POST' and environ['PATH_INFO'].startswith('/xmlrpc/'):
-        print('wsgi_xmlrpc - POST')
         length = int(environ['CONTENT_LENGTH'])
         data = environ['wsgi.input'].read(length)
         # Distinguish betweed the 2 faultCode modes
@@ -283,9 +276,7 @@ def wsgi_xmlrpc_legacy(environ, start_response):
         length = int(environ['CONTENT_LENGTH'])
         data = environ['wsgi.input'].read(length)
         path = environ['PATH_INFO'][len('/xmlrpc/'):]  # expected to be one of db, object, ...
-
-        print('wsgi_xmlrpc_legacy')
-
+        
         params, method = xmlrpclib.loads(data)
         return xmlrpc_return(start_response, path, method, params, True)
 
@@ -328,11 +319,9 @@ def http_to_wsgi(http_dir):
     It is a temporary solution: the HTTP sub-handlers (in particular the
     document_webdav addon) have to be WSGIfied.
     """
-
+    
     def wsgi_handler(environ, start_response):
-
-        print('wsgi_handler')
-
+        
         headers = {}
         for key, value in environ.items():
             if key.startswith('HTTP_'):
@@ -343,26 +332,26 @@ def http_to_wsgi(http_dir):
                 headers[key] = value
         if environ.get('Content-Type'):
             headers['Content-Type'] = environ['Content-Type']
-
+        
         path = urllib.quote(environ.get('PATH_INFO', ''))
         if environ.get('QUERY_STRING'):
             path += '?' + environ['QUERY_STRING']
-
+        
         request_version = 'HTTP/1.1'  # TODO
         request_line = "%s %s %s\n" % (environ['REQUEST_METHOD'], path, request_version)
-
+        
         class Dummy(object):
             pass
-
+        
         # Let's pretend we have a server to hand to the handler.
         server = Dummy()
         server.server_name = environ['SERVER_NAME']
         server.server_port = int(environ['SERVER_PORT'])
-
+        
         # Initialize the underlying handler and associated auth. provider.
         con = openerp.service.websrv_lib.noconnection(environ['wsgi.input'])
         handler = http_dir.instanciate_handler(con, environ['REMOTE_ADDR'], server)
-
+        
         # Populate the handler as if it is called by a regular HTTP server
         # and the request is already parsed.
         handler.wfile = StringIO.StringIO()
@@ -374,7 +363,7 @@ def http_to_wsgi(http_dir):
         handler.close_connection = 1
         handler.raw_requestline = request_line
         handler.requestline = request_line
-
+        
         # Handle authentication if there is an auth. provider associated to
         # the handler.
         if hasattr(handler, 'auth_provider'):
@@ -396,9 +385,9 @@ def http_to_wsgi(http_dir):
             except websrv_lib.AuthRejectedExc, e:
                 start_response("403 %s" % (e.args[0],), [])
                 return []
-
+        
         method_name = 'do_' + handler.command
-
+        
         # Support the OPTIONS method even when not provided directly by the
         # handler. TODO I would prefer to remove it and fix the handler if
         # needed.
@@ -407,7 +396,7 @@ def http_to_wsgi(http_dir):
                 return return_options(environ, start_response)
             start_response("501 Unsupported method (%r)" % handler.command, [])
             return []
-
+        
         # Finally, call the handler's method.
         try:
             method = getattr(handler, method_name)
@@ -425,23 +414,23 @@ def http_to_wsgi(http_dir):
         except Exception, e:
             start_response("500 Internal error", [])
             return []
-
+    
     return wsgi_handler
 
 
 def parse_http_response(s):
     """ Turn a HTTP response string into a httplib.HTTPResponse object."""
-
+    
     class DummySocket(StringIO.StringIO):
         """
         This is used to provide a StringIO to httplib.HTTPResponse
         which, instead of taking a file object, expects a socket and
         uses its makefile() method.
         """
-
+        
         def makefile(self, *args, **kw):
             return self
-
+    
     response = httplib.HTTPResponse(DummySocket(s))
     response.begin()
     return response
@@ -471,9 +460,9 @@ def application_unproxied(environ, start_response):
         del threading.current_thread().uid
     if hasattr(threading.current_thread(), 'dbname'):
         del threading.current_thread().dbname
-
+    
     openerp.service.start_internal()
-
+    
     # Try all handlers until one returns some result (i.e. not None).
     wsgi_handlers = [wsgi_xmlrpc_1, wsgi_xmlrpc, wsgi_xmlrpc_legacy, wsgi_webdav]
     wsgi_handlers += module_handlers
@@ -482,7 +471,7 @@ def application_unproxied(environ, start_response):
         if result is None:
             continue
         return result
-
+    
     # We never returned from the loop.
     response = 'No handler found.\n'
     start_response('404 Not Found', [('Content-Type', 'text/plain'), ('Content-Length', str(len(response)))])
@@ -508,9 +497,9 @@ def serve():
     Calling this function is blocking, you might want to call it in its own
     thread.
     """
-
+    
     global httpd
-
+    
     # TODO Change the xmlrpc_* options to http_*
     interface = config['xmlrpc_interface'] or '0.0.0.0'
     port = config['xmlrpc_port']
