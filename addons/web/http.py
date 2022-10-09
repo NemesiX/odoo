@@ -568,20 +568,20 @@ class Root(object):
             response = werkzeug.exceptions.NotFound()
         else:
             sid = request.cookies.get('sid')
-            # sid_authorization = request.headers.get('Authorization', '').partition(' ')[2]
-            # print('request.headers = {}'.format(request.headers))
-            # sid_X_Sid = request.headers.get('X-Sid', '')
-            # sid_arg = request.args.get('sid', '')
-            # print('sid_authorization = {}'.format(sid_authorization))
-            # print('sid_X_Sid = {}'.format(sid_X_Sid))
-            # print('sid_arg1 = {}'.format(sid_arg))
+            sid_authorization = request.headers.get('Authorization', '').partition(' ')[2]
+            print('request.headers = {}'.format(request.headers))
+            sid_x_sid = request.headers.get('X-Sid', '')
+            sid_arg = request.args.get('sid', '')
+            print('sid_authorization = {}'.format(sid_authorization))
+            print('sid_X_Sid = {}'.format(sid_x_sid))
+            print('sid_arg1 = {}'.format(sid_arg))
             if not sid:
                 sid = request.args.get('sid')
             if not sid:
                 sid = request.headers.get('Authorization', '').partition(' ')[2]
             if not sid:
                 sid = request.headers.get('X-Sid', '')
-
+            print('sid = {}'.format(sid))
             session_gc(self.session_store)
             
             with session_context(request, self.session_store, self.session_lock, sid) as session:
