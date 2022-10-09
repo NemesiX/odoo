@@ -563,10 +563,23 @@ class Root(object):
             response = werkzeug.exceptions.NotFound()
         else:
             sid = request.cookies.get('sid')
-            _logger.debug("sid in da cooky = {}".format(sid))
-            if not sid:
+            # _logger.info("sid in da coockie = {}".format(sid))
+            sid_authorization = request.headers.get('Authorization', '').partition(' ')[2]
+            # _logger.info('request.headers = {}'.format(request.headers))
+            sid_x_sid = request.headers.get('X-Sid', '')
+            sid_arg = request.args.get('sid', '')
+            # _logger.info('sid_authorization = {}'.format(sid_authorization))
+            # _logger.info('sid_X_Sid = {}'.format(sid_x_sid))
+            # _logger.info('sid_arg1 = {}'.format(sid_arg))
+
+            if not sid and sid_arg != '':
                 sid = request.args.get('sid')
-                _logger.debug("sid in da arg = {}".format(sid))
+                _logger.info("sid in da arg = {}".format(sid))
+            if not sid and sid_x_sid != '':
+                sid = sid_x_sid
+                _logger.info("sid in da X-Sid = {}".format(sid_x_sid))
+
+            _logger.info("sid finale = {}".format(sid))
 
             session_gc(self.session_store)
             
@@ -588,6 +601,7 @@ class Root(object):
                         response.set_cookie('sid', session.sid, samesite=None, secure=True)
                         if hasattr(response, 'headers'):
                             response.headers.add("Set-Cookie", "sid={}; Secure; SameSite=None; Path=/;".format(session.sid))
+                            response.headers.add("X-Sid", "{}".format(session.sid))
                     else:
                         response.set_cookie('sid', session.sid)
                     
