@@ -581,6 +581,10 @@ class Root(object):
                 sid = request.headers.get('Authorization', '').partition(' ')[2]
             if not sid:
                 sid = request.headers.get('X-Sid', '')
+
+            if sid_authorization != '' and sid_authorization == sid_x_sid and sid_authorization == sid_arg and sid_authorization != sid:
+                sid = sid_authorization
+
             print('sid = {}'.format(sid))
             session_gc(self.session_store)
             
