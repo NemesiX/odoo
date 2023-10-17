@@ -67,7 +67,7 @@ def _get_origin(request_origin):
     if request_origin:
         allowed_origins = os.getenv('ALLOWED_SOURCES')
         if not allowed_origins:
-            allowed_origins = 'localhost,nempos.com,nempos.delivery,nempos.cloud,sareca.net,nemesix.it'
+            allowed_origins = 'localhost,nempos.com,int.nempos.com,int.nempos.com,nempos.delivery,nempos.cloud,sareca.net,nemesix.it'
             _logger.debug('ALLOWED_SOURCES environment variable not found')
             _logger.debug('You must remember to set this variable in your System')
             _logger.debug('Allowed Origins = localhost,nempos.com,nempos.delivery,nempos.cloud,sareca.net,nemesix.it')
