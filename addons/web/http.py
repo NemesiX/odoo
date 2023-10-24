@@ -574,12 +574,12 @@ class Root(object):
 
             if not sid and sid_arg != '':
                 sid = request.args.get('sid')
-                _logger.info("sid in da arg = {}".format(sid))
+                _logger.debug("sid in da arg = {}".format(sid))
             if not sid and sid_x_sid != '':
                 sid = sid_x_sid
-                _logger.info("sid in da X-Sid = {}".format(sid_x_sid))
+                _logger.debug("sid in da X-Sid = {}".format(sid_x_sid))
 
-            _logger.info("sid finale = {}".format(sid))
+            _logger.debug("sid finale = {}".format(sid))
 
             session_gc(self.session_store)
             
